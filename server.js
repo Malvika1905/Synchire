@@ -15,27 +15,31 @@ console.log(
 // =========================
 // ✅ MIDDLEWARE
 // =========================
-app.use(cors({
-  origin: "*", // 🔥 allow all (change later in production)
-}));
-
+app.use(cors({ origin: "*" }));
 app.use(express.json());
+
+// =========================
+// ✅ REQUEST LOGGER (🔥 helps debug 404 issues)
+// =========================
+app.use((req, res, next) => {
+  console.log(`➡️ ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // =========================
 // ✅ DB CONNECTION CHECK (SAFE)
 // =========================
 const pool = require("./db");
 
-// 🔥 safer connection test (no hanging connections)
 (async () => {
   try {
     const client = await pool.connect();
     console.log("✅ Database connected successfully");
 
-    const res = await client.query(
+    const result = await client.query(
       "SELECT current_database(), current_user"
     );
-    console.log("DB INFO:", res.rows[0]);
+    console.log("DB INFO:", result.rows[0]);
 
     client.release();
   } catch (err) {
@@ -47,6 +51,10 @@ const pool = require("./db");
 // ✅ ROUTES
 // =========================
 const apiRoutes = require("./routes/api");
+
+// 🔥 log to confirm routes loaded
+console.log("✅ API routes loaded");
+
 app.use("/api", apiRoutes);
 
 // =========================
@@ -57,10 +65,20 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// ✅ HEALTH CHECK (Render useful)
+// ✅ HEALTH CHECK
 // =========================
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
+});
+
+// =========================
+// ❌ 404 HANDLER (🔥 IMPORTANT)
+// =========================
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
 });
 
 // =========================
@@ -76,7 +94,7 @@ app.use((err, req, res, next) => {
 });
 
 // =========================
-// ✅ PORT (Render compatible)
+// ✅ PORT
 // =========================
 const PORT = process.env.PORT || 5000;
 
